@@ -83,7 +83,7 @@ void Kinematics :: update(long count_left, long count_right) {
 
 
 float Kinematics :: home_angle() {
-  float angle = (- theta / (2 * PI) * 360) + 180;
+  float angle = (- theta / (2 * PI) * 360) + 182;
   //float angle = atan2(ypos, xpos);
   return angle;
 }

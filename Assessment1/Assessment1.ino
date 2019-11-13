@@ -37,9 +37,6 @@ unsigned long time_stamp;
 long prev_count_left;
 long prev_count_right;
 
-volatile float left_speed;
-volatile float right_speed;
-
 float home_theta;
 
 int left_reading, centre_reading, right_reading;
@@ -58,7 +55,6 @@ LineSensor line_right(LINE_RIGHT_PIN); //Create a line sensor object for the rig
 Kinematics pose;
 
 
-// Remember, setup only runs once.
 void setup() 
 {
   // Initialise your other globals variables
@@ -82,9 +78,6 @@ void setup()
   prev_count_left = 0;
   prev_count_right = 0;
 
-  left_speed = 0.0f;
-  right_speed = 0.0f;
-
   left_reading = 0;
   centre_reading = 0;
   right_reading = 0;
@@ -97,20 +90,19 @@ void setup()
 
 
 
-// Remmeber, loop is called again and again.
 void loop() 
 {
   unsigned long current_time = millis();
   unsigned long update_time = current_time - prev_update;
   unsigned long move_time = current_time - prev_move;
 
-  if (update_time > 3) {
+  if (update_time > 2) {
     prev_update = current_time;
     pose.update(count_left, count_right); // call an update to your kinematics at a time interval
   }
 
 
-  if (move_time > 3) {
+  if (move_time > 5) {
     prev_move = current_time;
     Serial.println(STATE);
     switch (STATE) {
@@ -148,14 +140,29 @@ void loop()
 
 }
 
+
 //Move forwards towards line.
 void FindLine() {
 
   bool onLine = checkForLine();
 
   if (!onLine) {
-    leftMotor(25.0f);
-    rightMotor(24.0f);
+    float theta_error = pose.get_theta();
+    int turn_pwm = 0;
+  
+    if (theta_error < 0){
+      turn_pwm = -2;
+    }
+    else if (theta_error > 0) {
+      turn_pwm = 2;
+    }
+    else turn_pwm = 0;
+  
+    int left_demand = 30 - turn_pwm;
+    int right_demand = 30 + turn_pwm;
+  
+    leftMotor(left_demand);
+    rightMotor(right_demand);
   }
   else {
     leftMotor(0.0f);
@@ -194,21 +201,21 @@ void BangBang() {
   bool centre_on_line = false;
   bool right_on_line = false;
   
-  if (left_reading > 80) left_on_line = true;
-  if (centre_reading > 90) centre_on_line = true;
-  if (right_reading > 80) right_on_line = true;
+  if (left_reading > 90) left_on_line = true;
+  if (centre_reading > 110) centre_on_line = true;
+  if (right_reading > 90) right_on_line = true;
 
   if (centre_on_line) {
-    leftMotor(24.0f);
-    rightMotor(23.0f);
+    leftMotor(22.0f);
+    rightMotor(21.0f);
   }
   else if (left_on_line) {
-    rightMotor(23.0f);
-    leftMotor(-24.0f);
+    rightMotor(21.0f);
+    leftMotor(-22.0f);
   }
   else if (right_on_line) {
-    leftMotor(24.0f);
-    rightMotor(-23.0f);
+    leftMotor(22.0f);
+    rightMotor(-21.0f);
   }
   else {
     leftMotor(0.0f);
@@ -240,7 +247,7 @@ bool RejoinLine() {
     rightMotor(19.0f);
     found_line = checkForLine();
   }
-  else if (elapsed_time < 2900) {
+  else if (elapsed_time < 3000) {
     leftMotor(20.0f);
     rightMotor(-19.0f);
     found_line = checkForLine();
@@ -248,7 +255,7 @@ bool RejoinLine() {
   else {
     leftMotor(0.0f);
     rightMotor(0.0f);
-    analogWrite(BUZZER, 1);
+    analogWrite(BUZZER, 10);
     delay(2000);
     analogWrite(BUZZER, 0);
     STATE = 3;
@@ -268,38 +275,7 @@ void FaceHome() {
 }
 
 
-//Drive distance from location to home.
-void DriveHome() {
-
-  float new_count_left, new_count_right;
-
-  if (!setup_distance) {
-    float distance = pose.home_distance();
-    float count = (distance / (70.0f * PI)) * 1440.0f;
-    new_count_left = count_left + count;
-    new_count_right = count_right + count;
-    setup_distance = true;
-  }
-
-  float speed = 20.0f;
-  
-  if (count_left < new_count_left) {
-    leftMotor(speed + 1.0f);
-  }
-  else leftMotor(0.0f);
-
-  if (count_right < new_count_right) {
-    rightMotor(speed);
-  }
-  else rightMotor(0.0f);
-
-  if (count_left >= new_count_left && count_right >= new_count_right) {
-    setup_distance = false;
-    STATE = 5;
-  }
-}
-
-
+//Turn to face the end of the map and drive until x position = 0
 void DriveHomeX() {
   
   if (!setup_distance) {
@@ -324,22 +300,15 @@ void DriveHomeX() {
   leftMotor(left_demand);
   rightMotor(right_demand);
 
-  if (abs(pose.get_xpos()) < 1) {
+  if (abs(pose.get_xpos()) < 10) {
     setup_distance = false;
     STATE = 5;
   }
-
-//  Serial.print( pose.get_xpos() );
-//  Serial.print( ", " );
-//  Serial.print( pose.get_ypos() );
-//  Serial.print( ", " );
-//  Serial.print( pose.get_theta() );
-//  Serial.print( ", " );
-//  Serial.println( home_theta );
   
 }
 
 
+//After turning 90 degrees, drive until y position = 0
 void DriveHomeY() {
   
   if (!setup_distance) {
@@ -364,7 +333,7 @@ void DriveHomeY() {
   leftMotor(left_demand);
   rightMotor(right_demand);
 
-  if (abs(pose.get_ypos()) < 1) {
+  if (abs(pose.get_ypos()) < 60) {
     STATE = 7;
   }
 
@@ -379,6 +348,7 @@ void DriveHomeY() {
 }
 
 
+//Turn to face start of map
 void turn_angle_right(float angle) {
 
   float new_count_left, new_count_right;
@@ -402,7 +372,7 @@ void turn_angle_right(float angle) {
   }
   else rightMotor(0.0f);
 
-  if (count_left >= (new_count_left - 10) && count_right <= (new_count_right + 10)) {
+  if (count_left > new_count_left && count_right < new_count_right) {
     setup_distance = false;
     
     //Set STATE to drive towards home.
@@ -411,6 +381,7 @@ void turn_angle_right(float angle) {
 }
 
 
+//Turn to face home
 void turn_angle_left(float angle) {
 
   float new_count_left, new_count_right;
@@ -494,7 +465,7 @@ void WeightedLine() {
     STATE = 2;  */
 
     //Beep and Set STATE to face home.
-    analogWrite(BUZZER, 1);
+    analogWrite(BUZZER, 10);
     delay(2000);
     analogWrite(BUZZER, 0);
 
