@@ -112,6 +112,7 @@ void loop()
 
   if (move_time > 3) {
     prev_move = current_time;
+    Serial.println(STATE);
     switch (STATE) {
       case 0: 
         FindLine();
@@ -127,13 +128,18 @@ void loop()
         FaceHome();
         break;
       case 4:
-        HomePID();
+        DriveHomeX();
         break;
       case 5:
+        turn_angle_left(90.0f);
+        break;
+      case 6:
+        DriveHomeY();
+        break;
+      case 7:
         leftMotor(0.0f);
         rightMotor(0.0f);
         Serial.println("Movement complete!");
-        break;
       default:
         Serial.println("System Error, Unknown state!");
         break;
@@ -196,11 +202,11 @@ void BangBang() {
     leftMotor(24.0f);
     rightMotor(23.0f);
   }
-  else if (left_on_line && !right_on_line) {
+  else if (left_on_line) {
     rightMotor(23.0f);
     leftMotor(-24.0f);
   }
-  else if (right_on_line && !left_on_line) {
+  else if (right_on_line) {
     leftMotor(24.0f);
     rightMotor(-23.0f);
   }
@@ -242,7 +248,7 @@ bool RejoinLine() {
   else {
     leftMotor(0.0f);
     rightMotor(0.0f);
-    analogWrite(BUZZER, 10);
+    analogWrite(BUZZER, 1);
     delay(2000);
     analogWrite(BUZZER, 0);
     STATE = 3;
@@ -257,7 +263,7 @@ bool RejoinLine() {
 
 //Turn and face home.
 void FaceHome() {
-  float angle = pose.home_angle() - 5;
+  float angle = pose.home_angle();
   turn_angle_right(angle);
 }
 
@@ -294,7 +300,7 @@ void DriveHome() {
 }
 
 
-void HomePID() {
+void DriveHomeX() {
   
   if (!setup_distance) {
     home_theta = pose.get_theta();
@@ -319,19 +325,58 @@ void HomePID() {
   rightMotor(right_demand);
 
   if (abs(pose.get_xpos()) < 1) {
+    setup_distance = false;
     STATE = 5;
   }
 
-  Serial.print( pose.get_xpos() );
-  Serial.print( ", " );
-  Serial.print( pose.get_ypos() );
-  Serial.print( ", " );
-  Serial.print( pose.get_theta() );
-  Serial.print( ", " );
-  Serial.println( home_theta );
+//  Serial.print( pose.get_xpos() );
+//  Serial.print( ", " );
+//  Serial.print( pose.get_ypos() );
+//  Serial.print( ", " );
+//  Serial.print( pose.get_theta() );
+//  Serial.print( ", " );
+//  Serial.println( home_theta );
   
 }
 
+
+void DriveHomeY() {
+  
+  if (!setup_distance) {
+    home_theta = pose.get_theta();
+    setup_distance = true;
+  }
+
+  float theta_error = home_theta - pose.get_theta();
+  int turn_pwm = 0;
+
+  if (theta_error > 0){
+    turn_pwm = -2;
+  }
+  else if (theta_error < 0) {
+    turn_pwm = 2;
+  }
+  else turn_pwm = 0;
+
+  int left_demand = 30 - turn_pwm;
+  int right_demand = 30 + turn_pwm;
+
+  leftMotor(left_demand);
+  rightMotor(right_demand);
+
+  if (abs(pose.get_ypos()) < 1) {
+    STATE = 7;
+  }
+
+//  Serial.print( pose.get_xpos() );
+//  Serial.print( ", " );
+//  Serial.print( pose.get_ypos() );
+//  Serial.print( ", " );
+//  Serial.print( pose.get_theta() );
+//  Serial.print( ", " );
+//  Serial.println( home_theta );
+  
+}
 
 
 void turn_angle_right(float angle) {
@@ -377,21 +422,29 @@ void turn_angle_left(float angle) {
     setup_distance = true;
   }
 
+  Serial.print(count_left);
+  Serial.print( ", " );
+  Serial.println(count_right);
+
+  Serial.print(new_count_left);
+  Serial.print( ", " );
+  Serial.println(new_count_right);
+
   float speed = 20.0f;
   
-  if (count_left < new_count_left) {
+  if (count_left > new_count_left) {
     leftMotor(-(speed + 1.0f));
   }
   else leftMotor(0.0f);
 
-  if (count_right > new_count_right) {
+  if (count_right < new_count_right) {
     rightMotor(speed);
   }
   else rightMotor(0.0f);
 
   if (count_left <= new_count_left && count_right >= new_count_right) {
     setup_distance = false;
-    STATE = 4;
+    STATE = 6;
   }
 }
 
@@ -441,7 +494,7 @@ void WeightedLine() {
     STATE = 2;  */
 
     //Beep and Set STATE to face home.
-    analogWrite(BUZZER, 5);
+    analogWrite(BUZZER, 1);
     delay(2000);
     analogWrite(BUZZER, 0);
 

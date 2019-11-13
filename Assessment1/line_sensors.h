@@ -60,7 +60,7 @@ void LineSensor::calibrate() {
 
   average = sum / NUM_CALIBRATIONS;
 
-  analogWrite(BUZZER, 5);
+  analogWrite(BUZZER, 1);
   delay(100);
   analogWrite(BUZZER, 0);
   

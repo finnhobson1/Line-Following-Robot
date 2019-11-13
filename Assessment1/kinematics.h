@@ -7,7 +7,7 @@
 //You may want to use some/all of these variables
 const float WHEEL_DIAMETER              = 70.0f; //mm
 const float WHEEL_RADIUS                = 35.0f; //mm
-const float WHEEL_SEPERATION            = 141.0f;
+const float WHEEL_SEPERATION            = 140.0f;
 const float GEAR_RATIO                  = 1.0f/120.0f;
 const float COUNTS_PER_SHAFT_REVOLUTION = 12.0f;
 const float COUNTS_PER_WHEEL_REVOLUTION =  1440.0f;
@@ -83,7 +83,7 @@ void Kinematics :: update(long count_left, long count_right) {
 
 
 float Kinematics :: home_angle() {
-  float angle = (- theta / (2 * PI) * 360) + 180 - atan2(ypos, xpos);
+  float angle = (- theta / (2 * PI) * 360) + 180;
   //float angle = atan2(ypos, xpos);
   return angle;
 }
