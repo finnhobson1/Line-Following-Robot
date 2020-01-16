@@ -1,7 +1,3 @@
-// ***THINGS TO TRY***
-// Weighted Line
-// Turn to 180 degrees -> Travel to ypos
-
 
 #include "encoders.h"
 #include "pid.h"
